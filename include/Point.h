@@ -12,17 +12,14 @@ class Point
 	double x;
 	double y;
 	double z;
-	double rowPos;
-	double colPos;
 	double coreDistance;
 	double scatteringAngle;
-	double momentum;
 	double reachabilityDistance;
 	double distanceToP;
 	double indexInPointsList;
 	bool processed;
 	int clusterID;
-	vector<Point> * neighbors;
+	vector<Point*> * neighbors;
 	void operator= (const Point & rightSide);
 
 	// constructor

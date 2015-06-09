@@ -6,14 +6,13 @@
 class Optics
 {
 public:
-	static vector<Point>* runOptics(vector<Point>* pointsList, int slice[][MAX_COLS]);
-	static void clusters(vector<Point>* orderedList);
+	static vector<Point>* runOptics(vector<Point>* pointsList);
+	static vector<vector<Point> > clusters(vector<Point>* orderedList);
 
 private:
-	static void update(vector<Point>* genericList, vector<Point>* neighbors, Point point, PointPriorityQ * seeds, int slice[][MAX_COLS]);
-    static void getNeighbors(vector<Point>* pointsList, int pointIndex, int slice[][MAX_COLS]);
-    static Point* findPointInList(vector<Point>* pointsList, int row, int col);
-    static double euclideanDistance(double x1, double x2, double y1, double y2);
+	static void update(vector<Point>* pointsList, int pointIndex, PointPriorityQ * seeds);
+    static void getNeighbors(vector<Point>* pointsList, int pointIndex);
+    static double euclideanDistance(double x1, double y1, double z1, double x2, double y2, double z2);
 };
 
 #endif

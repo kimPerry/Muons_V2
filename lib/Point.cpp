@@ -7,16 +7,13 @@ Point::Point()
 	x = 0;
 	y = 0;
 	z = 0;
-	rowPos = 0;
-	colPos = 0;
 	scatteringAngle = 0;
-	momentum = 0;
 	distanceToP = 0;
 	processed = false;
 	reachabilityDistance = UNDEFINEDRD;
 	clusterID = NOISE;
 	coreDistance = UNDEFINEDCD;
-    neighbors = new vector<Point>;
+    neighbors = new vector<Point*>;
     indexInPointsList = 0;
 }
 
@@ -25,12 +22,9 @@ Point::Point(const Point & rightSide)
 	x = rightSide.x;
 	y = rightSide.y;
 	z = rightSide.z;
-	rowPos = rightSide.rowPos;
-	colPos = rightSide.colPos;
 	coreDistance = rightSide.coreDistance;
 	scatteringAngle = rightSide.scatteringAngle;
 	indexInPointsList = rightSide.indexInPointsList;
-	momentum = rightSide.momentum;
 	reachabilityDistance = rightSide.reachabilityDistance;
 	distanceToP = rightSide.distanceToP;
 	processed = rightSide.processed;
@@ -52,7 +46,6 @@ void Point:: operator= (const Point & rightSide)
 	coreDistance = rightSide.coreDistance;
 	scatteringAngle = rightSide.scatteringAngle;
 	indexInPointsList = rightSide.indexInPointsList;
-	momentum = rightSide.momentum;
 	reachabilityDistance = rightSide.reachabilityDistance;
 	distanceToP = rightSide.distanceToP;
 	processed = rightSide.processed;

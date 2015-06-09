@@ -1,14 +1,9 @@
 //============================================================================
 // Name        : GraphTest.cpp
 // Author      : Kim Perry
-// Description : OPTICS Clustering V1
+// Description : OPTICS Clustering
 //============================================================================
 
-// TODO
-// find out if dynamic vectors are ok
-// brute force algo
-// non poca test
-// mesh plots
 
 #include <iostream>
 #include <fstream>
@@ -19,6 +14,7 @@
 #include <queue>
 #include <cmath>
 #include <limits>
+#include <stdio.h>
 #include "Point.h"
 #include "PointPriorityQ.h"
 #include "Optics.h"
@@ -27,25 +23,20 @@ using namespace std;
 
 struct muonTrack
 {
-	double time;
-	double scatAngleTotal;
-	double momentum;
-	double pocaX;
-	double pocaY;
-	double pocaZ;
+	float time;
+	float scatAngleTotal;
+	float pocaX;
+	float pocaY;
+	float pocaZ;
 };
 
-void fileReadIn(ifstream & fin, int lineCount, muonTrack * muonTracks );
-void clearSlice(int slice[][MAX_COLS]);
+double fileReadIn(string filename, vector<muonTrack>* muonTracks);
 void writeToFile(ofstream & fout, vector<Point> points);
 
 int main() {
 
 	vector<Point> tempList;
-	vector<vector<Point>* > orderedPoints;
-	vector<Point>* orderedListX = new vector<Point>;
-	vector<Point>* orderedListY = new vector<Point>;
-	vector<Point>* orderedListZ = new vector<Point>;
+	vector<Point>* orderedPoints = new vector<Point>;
 
 	int indexPL = 0;
 
@@ -60,7 +51,9 @@ int main() {
 	double totalSeconds;
 	double endTime;
 
-	char filename[] = "MTTrackEpoch_202692.csv";
+	bool iterative = false;
+
+	char filename[] = "MTTrackEpoch_852.csv";
 
 	ifstream fin;
 	ofstream fout;
@@ -68,8 +61,6 @@ int main() {
 
 	vector<Point> points;
 	Point * point = NULL;
-
-	int slice[MAX_ROWS][MAX_COLS];
 
     // stop new lines from being skipped
     fin.unsetf(std::ios_base::skipws);
@@ -82,165 +73,105 @@ int main() {
 
 	cout << lineCount << " tracks" << endl;
 
-	// array of muon track data
-	muonTrack * muonTracks = new muonTrack[lineCount];
-
-	vector<int>::iterator it;
+	// vector of muon track data
+	vector<muonTrack> * muonTracks = new vector<muonTrack>;
 
 	// read in file
 	cout << "Reading file..." << endl;
 	fin.open(filename);
-	fileReadIn(fin, lineCount, muonTracks);
+	initialTime = fileReadIn(filename, muonTracks) / divisor;
 	fin.close();
-	fout.open("allPocas.dat");
+	cout << "Number of muons over " << SCAT_ANGLE << " : " << muonTracks->size() << endl;
 
-	initialTime = muonTracks[0].time / divisor;
+	//fout.open("allPocas.dat");
+
+	initialTime = muonTracks->at(0).time / divisor;
 	totalSeconds = 60 * TIME_MINUTES;
 	initialTime = round(initialTime);
 	endTime = initialTime + totalSeconds;
 
-	cout << "Beginning optics..." << endl;
+	cout << "Making a list..." << endl;
 
 	// gather muons in time frame
-	while((muonTracks[tracker].time / divisor) < endTime)
+	for(int i = 0; i < muonTracks->size(); i++)
+	//{
+	//
+	//while((muonTracks->at(tracker).time / divisor) < endTime)
 	{
-		if(tracker > 0 && (muonTracks[tracker].time / divisor) < (muonTracks[tracker-1].time / divisor))
+		if(tracker > 0 && (muonTracks->at(tracker).time / divisor) < (muonTracks->at(tracker-1).time / divisor))
 		{
-			elapsedTime = muonTracks[tracker-1].time/divisor - initialTime;
+			elapsedTime = muonTracks->at(tracker-1).time/divisor - initialTime;
 			totalElapsedTime += elapsedTime;
-			endTime = (muonTracks[tracker].time/divisor) + (totalSeconds - totalElapsedTime);
+			endTime = (muonTracks->at(tracker).time/divisor) + (totalSeconds - totalElapsedTime);
 		}
 
 		// if track has valid POCA values
-		if(muonTracks[tracker].pocaX > 0 && muonTracks[tracker].pocaY > 0 && muonTracks[tracker].pocaZ > 0)
+		if(muonTracks->at(tracker).pocaX > 0 && muonTracks->at(tracker).pocaY > 0 && muonTracks->at(tracker).pocaZ > 0)
 		{
 			// if track has scattering angle over a certain threshold
-			if(muonTracks[tracker].scatAngleTotal > SCAT_ANGLE)
+			if(muonTracks->at(tracker).scatAngleTotal > SCAT_ANGLE)
 			{
 				point = new Point;
-				point->x = muonTracks[tracker].pocaX;
-				point->y = muonTracks[tracker].pocaY;
-				point->z = muonTracks[tracker].pocaZ;
-				point->scatteringAngle = muonTracks[tracker].scatAngleTotal;
-				point->momentum = muonTracks[tracker].momentum;
+				point->x = muonTracks->at(tracker).pocaX;
+				point->y = muonTracks->at(tracker).pocaY;
+				point->z = muonTracks->at(tracker).pocaZ;
+				point->scatteringAngle = muonTracks->at(tracker).scatAngleTotal;
+				point->indexInPointsList = indexPL;
 				points.push_back(*point);
+				indexPL++;
 			}
 		}
+
 		tracker++;
+
 	}
 
+	cout << "end loop" << endl;
+
+	fout.open("allPocas.dat");
 	// write out all POCAs for comparison
 	writeToFile(fout, points);
     fout.close();
-	// optics time
-	// for every x plane
-	for(int i = 0; i < 160; i++)
-	{
-		clearSlice(slice);
-		for(int j = 0; j < (int)points.size(); j++)
-		{
-			if((int)points[j].x == i)
-			{
-				if((int)points[j].z < MAX_ROWS && (int)points[j].y < MAX_COLS && (int)points[j].z >=0 && (int)points[j].y >= 0)
-				{
-					slice[(int)points[j].z][(int)points[j].y] = 1;
-					points[j].rowPos = points[j].z;
-					points[j].colPos = points[j].y;
-					points[j].indexInPointsList = indexPL;
-					indexPL++;
-					tempList.push_back(points[j]);
-				}
-			}
-		}
 
-		// call optics
-		orderedListX = Optics::runOptics(&tempList, slice);
-		Optics::clusters(orderedListX);
-		tempList.clear();
-		indexPL = 0;
-		orderedPoints.push_back(orderedListX);
-	}
+	cout << "Beginning OPTICS..." << endl;
+	// call optics
+	orderedPoints = Optics::runOptics(&points);
 
-	// for every y plane
-	for(int i = 0; i < 160; i++)
-	{
-		clearSlice(slice);
-		for(int j = 0; j < (int)points.size(); j++)
-		{
-			if((int)points[j].y == i)
-			{
-				if((int)points[j].z < MAX_ROWS && (int)points[j].x < MAX_COLS && (int)points[j].z >=0 && (int)points[j].x >= 0)
-				{
-					slice[(int)points[j].z][(int)points[j].x] = 1;
-					points[j].rowPos = points[j].z;
-					points[j].colPos = points[j].x;
-					points[j].indexInPointsList = indexPL;
-					indexPL++;
-					tempList.push_back(points[j]);
-				}
+	cout << "Finding clusters..." << endl;
+	vector<vector<Point> > clusterList;
+	clusterList = Optics::clusters(orderedPoints);
+	indexPL = 0;
 
-			}
-		}
-
-		// call optics
-		orderedListY = Optics::runOptics(&tempList, slice);
-		Optics::clusters(orderedListY);
-		tempList.clear();
-		indexPL = 0;
-		orderedPoints.push_back(orderedListY);
-	}
-
-	// for every z plane
-	for(int i = 0; i < 125; i++)
-	{
-		clearSlice(slice);
-		for(int j = 0; j < (int)points.size(); j++)
-		{
-			if((int)points[j].z == i)
-			{
-				if((int)points[j].x < MAX_ROWS && (int)points[j].y < MAX_COLS && (int)points[j].x >=0 && (int)points[j].y >= 0)
-				{
-					slice[(int)points[j].x][(int)points[j].y] = 1;
-					points[j].rowPos = points[j].x;
-					points[j].colPos = points[j].y;
-					points[j].indexInPointsList = indexPL;
-					indexPL++;
-					tempList.push_back(points[j]);
-				}
-			}
-		}
-
-		// call optics
-		orderedListZ = Optics::runOptics(&tempList, slice);
-		Optics::clusters(orderedListZ);
-		tempList.clear();
-		indexPL = 0;
-		orderedPoints.push_back(orderedListZ);
-	}
 
 	// read out to file
 	cout << "Writing file..." << endl;
 	fout.open("optics.dat");
 
 	int numPoints = 0;
-	for(int i = 0; i < int(orderedPoints.size()); i++)
+	double xmin = 10000, ymin = 10000, zmin = 10000, xmax = 0, ymax = 0, zmax = 0;
+
+	for(int i = 0; i < clusterList.size(); i++)
 	{
-		for(int j = 0; j < (int)orderedPoints.at(i)->size(); j++)
+		for(int j = 0; j < clusterList.at(i).size(); j++)
 		{
-			if(orderedPoints.at(i)->at(j).clusterID != NOISE)
+			if(clusterList.at(i).size() >= MIN_PTS)
 			{
-				fout << orderedPoints.at(i)->at(j).x << "\t" << orderedPoints.at(i)->at(j).y << "\t" << orderedPoints.at(i)->at(j).z << "\t" << orderedPoints.at(i)->at(j).scatteringAngle * 20 << endl;
+
+			if(clusterList.at(i).at(j).x > 20){
+
+				fout << clusterList.at(i).at(j).x << "\t" << clusterList.at(i).at(j).y
+										<< "\t" << clusterList.at(i).at(j).z << endl;
 				numPoints++;
+				}
 			}
 		}
 	}
+
 	fout.close();
 
 	cout << "high scattering points after checking: " << numPoints << endl;
 
-	orderedListX->clear();
-	orderedListY->clear();
-	orderedListZ->clear();
+	orderedPoints->clear();
 	delete muonTracks;
 	delete point;
 	return 0;
@@ -248,12 +179,13 @@ int main() {
 
 void writeToFile(ofstream & fout, vector<Point> points)
 {
-	for(int i = 0; i < points.size(); i++)
+	for(int i = 0; i < (int)points.size(); i++)
 	{
 		fout << points[i].x << "\t" << points[i].y << "\t" << points[i].z << "\t" << points[i].scatteringAngle * 70 << endl;
 	}
 }
 
+// big data files
 void clearSlice(int slice[][MAX_COLS])
 {
 	for(int i = 0; i < MAX_ROWS; i++)
@@ -265,61 +197,79 @@ void clearSlice(int slice[][MAX_COLS])
 	}
 }
 
-void fileReadIn(ifstream & fin, int lineCount, muonTrack * muonTracks)
+double fileReadIn(string filename, vector<muonTrack>* muonTracks)
 {
 	string dummy;
+	double startTime, time, scatAngleTotal;
+	muonTrack * temp;
+	int index = 0;
 
-	for(int index = 0; index < lineCount; index++)
+	cout << "test" << endl;
+    ifstream fin;
+	fin.open(filename);
+
+
+	cout << filename << endl;
+	if(fin.good())
 	{
-		getline(fin, dummy, ',' );
-		muonTracks[index].time = atof(dummy.c_str());
-
-		getline(fin, dummy, ',' );
-		//muonTracks[index].inDirX = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].inDirY = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].inDirZ = atof(dummy.c_str());
-
-		getline(fin, dummy, ',' );
-		//muonTracks[index].inPointX = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].inPointY = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].inPointZ = atof(dummy.c_str());
-
-		getline(fin, dummy, ',' );
-		//muonTracks[index].outDirX = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].outDirY = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].outDirZ = atof(dummy.c_str());
-
-		getline(fin, dummy, ',' );
-		//muonTracks[index].outPointX = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].outPointY = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].outPointZ = atof(dummy.c_str());
-
-		getline(fin, dummy, ',' );
-		muonTracks[index].momentum = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].momentumOut = atof(dummy.c_str());
-
-		getline(fin, dummy, ',' );
-		//muonTracks[index].scatAngleX = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		//muonTracks[index].scatAngleY = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		muonTracks[index].scatAngleTotal = atof(dummy.c_str());
-
-		// POCA x y and z
-		getline(fin, dummy, ',' );
-		muonTracks[index].pocaX = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		muonTracks[index].pocaY = atof(dummy.c_str());
-		getline(fin, dummy, ',' );
-		muonTracks[index].pocaZ = atof(dummy.c_str());
+		cout << "googd" << endl;
 	}
+
+	while(getline(fin, dummy, ',' ))
+	{
+		time = atof(dummy.c_str());
+		if(index == 0)
+		{
+			startTime = time;
+		}
+
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+		getline(fin, dummy, ',' );
+
+		scatAngleTotal = atof(dummy.c_str());
+		if(scatAngleTotal > SCAT_ANGLE)
+		{
+			temp = new muonTrack;
+			temp->time = time;
+			temp->scatAngleTotal = scatAngleTotal;
+			// POCA x y and z
+			getline(fin, dummy, ',' );
+			temp->pocaX = atof(dummy.c_str());
+			getline(fin, dummy, ',' );
+			temp->pocaY = atof(dummy.c_str());
+			getline(fin, dummy, ',' );
+			temp->pocaZ = atof(dummy.c_str());
+			muonTracks->push_back(*temp);
+		}
+		else
+		{
+			// POCA x y and z
+			getline(fin, dummy, ',' );
+			getline(fin, dummy, ',' );
+			getline(fin, dummy, ',' );
+		}
+		index++;
+	}
+	fin.close();
+	return startTime;
 }
